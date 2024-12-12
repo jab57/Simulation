@@ -1,4 +1,5 @@
 import streamlit as st
+import graphviz
 import simpy
 import numpy as np
 import pandas as pd
@@ -408,59 +409,143 @@ def visualize_simulation_results(results_df: pd.DataFrame):
 # visualize_simulation_results(results_df)
 
 
+def visualize_process_flow():
+    """
+    Create and display the process flow diagram in Streamlit.
+    """
+    st.subheader("Construction Project Process Flow")
+   
+    # Create the Graphviz diagram
+    process_flow_diagram = create_process_flow_diagram()
+   
+    # Render the diagram
+    st.graphviz_chart(process_flow_diagram)
+   
+
+
+def create_process_flow_diagram():
+    """
+    Create a Graphviz process flow diagram for the construction project simulation.
+    
+    Returns:
+    graphviz.Digraph: A graphviz diagram showing the project phases and their connections
+    """
+    # Create a new directed graph
+    dot = graphviz.Digraph('construction_project_flow', comment='Construction Project Simulation Flow',
+                            node_attr={
+                                'shape': 'box', 
+                                'style': 'filled', 
+                                'fillcolor': 'lightblue', 
+                                'fontname': 'Arial'
+                            },
+                            edge_attr={
+                                'color': 'navy', 
+                                'fontname': 'Arial'
+                            })
+    
+    # Set graph attributes
+    dot.attr(rankdir='TB', size='8,8')
+    
+    # Define the project phases
+    phases = [
+        'Start Project',
+        'Site Preparation',
+        'Foundation Work', 
+        'Structural Framing', 
+        'Roofing', 
+        'Interior Work', 
+        'Finishing',
+        'Project Completion'
+    ]
+    
+    # Add nodes for each phase
+    for phase in phases:
+        dot.node(phase.replace(' ', '_'), phase)
+    
+    # Connect the phases in sequence
+    for i in range(len(phases)-1):
+        dot.edge(
+            phases[i].replace(' ', '_'), 
+            phases[i+1].replace(' ', '_'), 
+            label=f'Phase {i+1}'
+        )
+    
+    # Highlight key simulation parameters
+    dot.attr('node', shape='ellipse', style='filled', fillcolor='lightyellow')
+    dot.node('Parameters', 'Simulation Parameters:\n- Initial Budget\n- Material Quantities\n- Resource Allocation\n- Activity Durations')
+    dot.edge('Parameters', 'Start_Project', style='dashed', color='gray')
+    
+    return dot
 
 
 def main():
     st.title("Construction Project Simulation")
     
-    # Sidebar for global simulation parameters
-    st.sidebar.header("Simulation Parameters")
+    # Create two columns for layout
+    col1, col2 = st.columns([1, 1])
     
-    # Number of simulation iterations
-    num_iterations = st.sidebar.number_input(
-        "Number of Simulation Iterations", 
-        min_value=10, 
-        max_value=1000, 
-        value=100, 
-        key="num_iterations"
-    )
+    with col1:
+        # Sidebar-like parameters section
+        st.header("Simulation Parameters")
+        
+        # Number of simulation iterations
+        num_iterations = st.number_input(
+            "Number of Simulation Iterations", 
+            min_value=10, 
+            max_value=1000, 
+            value=100, 
+            key="num_iterations"
+        )
+        
+        # Initial budget
+        initial_budget = st.number_input(
+            "Initial Project Budget", 
+            min_value=10000.0, 
+            value=500000.0, 
+            key="initial_budget"
+        )
+        
+        st.header("Construction Activities Duration")
+        activities = [
+            'site_preparation', 'foundation_work', 'structural_framing', 
+            'roofing', 'interior_work', 'finishing'
+        ]
+        
+        activities_duration = {}
+        for activity in activities:
+            with st.expander(f"{activity.replace('_', ' ').title()} Duration"):
+                min_duration = st.number_input(
+                    f"{activity.replace('_', ' ').title()} Min Duration (hours)", 
+                    min_value=0.0, 
+                    value=50.0, 
+                    key=f"{activity}_min_duration"
+                )
+                max_duration = st.number_input(
+                    f"{activity.replace('_', ' ').title()} Max Duration (hours)", 
+                    min_value=0.0, 
+                    value=100.0, 
+                    key=f"{activity}_max_duration"
+                )
+                activities_duration[activity] = (min_duration, max_duration)
     
-    # Initial budget
-    initial_budget = st.sidebar.number_input(
-        "Initial Project Budget", 
-        min_value=10000.0, 
-        value=500000.0, 
-        key="initial_budget"
-    )
+    with col2:
+        # Process Flow Diagram
+        st.header("Project Simulation Flow")
+        visualize_process_flow()
     
-    st.sidebar.header("Construction Activities Duration")
-    activities = [
-        'site_preparation', 'foundation_work', 'structural_framing', 
-        'roofing', 'interior_work', 'finishing'
-    ]
+    # Material and Resource Configuration (full width)
+    st.header("Project Configuration")
     
-    activities_duration = {}
-    for activity in activities:
-        with st.sidebar.expander(f"{activity.replace('_', ' ').title()} Duration"):
-            min_duration = st.number_input(
-                f"{activity.replace('_', ' ').title()} Min Duration (hours)", 
-                min_value=0.0, 
-                value=50.0, 
-                key=f"{activity}_min_duration"
-            )
-            max_duration = st.number_input(
-                f"{activity.replace('_', ' ').title()} Max Duration (hours)", 
-                min_value=0.0, 
-                value=100.0, 
-                key=f"{activity}_max_duration"
-            )
-            activities_duration[activity] = (min_duration, max_duration)
+    # Create two columns for material and resource configuration
+    mat_col, res_col = st.columns(2)
     
-    # Material configuration section
-    materials_config = create_material_input_section()
+    with mat_col:
+        # Material configuration section
+        materials_config = create_material_input_section()
     
-    # Resource configuration section
-    resources_config = create_resource_input_section()
+    with res_col:
+        # Resource configuration section
+        resources_config = create_resource_input_section()
     
     # Run simulation button
     if st.button("Run Simulation"):
